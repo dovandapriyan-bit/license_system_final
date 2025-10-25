@@ -1,44 +1,234 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8">
-  <title>License Activation - Final</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<title>Control Panel Lisensi Pusat</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background:#f0f0f0;}
+  .container { max-width: 1000px; margin:auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
+  table { width:100%; border-collapse:collapse; margin-top:20px;}
+  th, td { border:1px solid #ccc; padding:8px; text-align:center;}
+  th { background:#eee;}
+  input, select, button { padding:8px; margin:5px; font-size:14px;}
+  .message { margin-top:10px; font-weight:bold;}
+</style>
 </head>
 <body>
-  <div class="container">
-    <header><h1>License Activation</h1></header>
-    <main>
-      <section class="card">
-        <label>License Key</label>
-        <input id="licenseKey" placeholder="LIC-XXXX-XXXX-XXXX" />
-        <label>Product ID</label>
-        <input id="productId" placeholder="prod-pos (contoh)" />
-        <button id="btnCheck">Check & Activate</button>
-        <div id="result" class="muted"></div>
-      </section>
 
-      <section class="card">
-        <h3>Available Licenses (preview)</h3>
-        <button id="btnList">Load Licenses</button>
-        <div id="list"></div>
-      </section>
+<div class="container">
+  <h2>Control Panel Lisensi Pusat</h2>
 
-      <footer class="muted">Admin panel: <a href="admin.html">Open admin</a></footer>
-    </main>
-  </div>
+  <!-- Generate Lisensi -->
+  <h3>Generate Lisensi Baru</h3>
+  <select id="projectDropdown">
+    <option value="">Pilih Project</option>
+  </select>
+  <input type="text" id="userID" placeholder="User ID / Nomor HP">
+  <select id="plan">
+    <option value="trial">Trial</option>
+    <option value="basic">Basic</option>
+    <option value="premium">Premium</option>
+  </select>
+  <button id="generateBtn">Generate Lisensi</button>
+  <div class="message" id="genMessage"></div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- Atur Durasi Paket -->
+  <h3>Pengaturan Durasi Paket (hari)</h3>
+  <input type="number" id="durTrial" placeholder="Trial" value="7">
+  <input type="number" id="durBasic" placeholder="Basic" value="30">
+  <input type="number" id="durPremium" placeholder="Premium" value="365">
+  <button id="saveDurBtn">Simpan Durasi</button>
+  <div class="message" id="durMessage"></div>
 
-  <script src="js/firebase-config.js"></script>
-  <script>
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-  </script>
-  <script src="js/main.js"></script>
+  <!-- Backup / Restore -->
+  <h3>Backup / Restore CSV</h3>
+  <button id="backupBtn">Backup CSV</button>
+  <input type="file" id="restoreFile">
+  <button id="restoreBtn">Restore CSV</button>
+  <div class="message" id="backupMessage"></div>
+
+  <!-- Tabel Project Lisensi -->
+  <h3>Daftar Project Lisensi</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Nama Project</th>
+        <th>User Active</th>
+        <th>User Expired</th>
+        <th>Jumlah User</th>
+      </tr>
+    </thead>
+    <tbody id="projectList">
+      <tr><td colspan="4">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+  // 🔹 Konfigurasi Firebase
+  const firebaseConfig = {
+    apiKey: "API_KEY",
+    authDomain: "PROJECT_ID.firebaseapp.com",
+    projectId: "PROJECT_ID",
+    storageBucket: "PROJECT_ID.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const projectDropdown = document.getElementById('projectDropdown');
+  const projectListTbody = document.getElementById('projectList');
+
+  // 🔹 Load project ke dropdown & realtime update tabel
+  db.collection("projects").onSnapshot(snapshot => {
+    // Dropdown
+    projectDropdown.innerHTML = '<option value="">Pilih Project</option>';
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = data.name;
+      projectDropdown.appendChild(option);
+    });
+
+    // Tabel
+    if(snapshot.empty){
+      projectListTbody.innerHTML="<tr><td colspan='4'>Tidak ada project.</td></tr>";
+      return;
+    }
+    let rows="";
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      let active=0, expired=0, total=0;
+      if(data.users){
+        Object.values(data.users).forEach(u=>{
+          if(u.status==="active") active++;
+          if(u.status==="expired") expired++;
+          total++;
+        });
+      }
+      rows+=`<tr>
+        <td>${data.name}</td>
+        <td>${active}</td>
+        <td>${expired}</td>
+        <td>${total}</td>
+      </tr>`;
+    });
+    projectListTbody.innerHTML = rows;
+  });
+
+  // 🔹 Generate Lisensi Baru
+  document.getElementById('generateBtn').addEventListener('click', async ()=>{
+    const projectName = projectDropdown.value.trim();
+    const userID = document.getElementById('userID').value.trim();
+    const plan = document.getElementById('plan').value;
+    const msg = document.getElementById('genMessage');
+    msg.innerHTML="⏳ Menyimpan...";
+
+    if(!projectName||!userID){ msg.innerHTML="⚠️ Pilih project dan masukkan User ID!"; return; }
+
+    try {
+      const projRef = db.collection("projects").doc(projectName);
+      const projSnap = await projRef.get();
+      let defaultDur={trial:7,basic:30,premium:365};
+      if(projSnap.exists && projSnap.data().defaultDuration) defaultDur=projSnap.data().defaultDuration;
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + defaultDur[plan]);
+
+      const userData = { plan, status:"active", expiresAt:expiresAt };
+      if(projSnap.exists){
+        const users = projSnap.data().users||{};
+        users[userID]=userData;
+        await projRef.update({users});
+      }else{
+        await projRef.set({name:projectName, defaultDuration:defaultDur, users:{ [userID]: userData }});
+      }
+      msg.innerHTML="✅ Lisensi berhasil dibuat!";
+    } catch(e){ console.error(e); msg.innerHTML="❌ Gagal membuat lisensi"; }
+  });
+
+  // 🔹 Simpan durasi paket
+  document.getElementById('saveDurBtn').addEventListener('click', async ()=>{
+    const trial = parseInt(document.getElementById('durTrial').value);
+    const basic = parseInt(document.getElementById('durBasic').value);
+    const premium = parseInt(document.getElementById('durPremium').value);
+    const msg = document.getElementById('durMessage');
+
+    if(isNaN(trial)||isNaN(basic)||isNaN(premium)){ msg.innerHTML="⚠️ Masukkan angka valid!"; return; }
+
+    try{
+      const snapshot = await db.collection("projects").get();
+      snapshot.forEach(async doc=>{
+        await db.collection("projects").doc(doc.id).update({defaultDuration:{trial,basic,premium}});
+      });
+      msg.innerHTML="✅ Durasi paket tersimpan untuk semua project";
+    }catch(e){ console.error(e); msg.innerHTML="❌ Gagal menyimpan durasi"; }
+  });
+
+  // 🔹 Backup CSV
+  document.getElementById('backupBtn').addEventListener('click', async ()=>{
+    const msg = document.getElementById('backupMessage');
+    msg.innerHTML="⏳ Membuat backup...";
+    try{
+      const snapshot = await db.collection("projects").get();
+      let csv="Project,UserID,Plan,Status,ExpiresAt\n";
+      snapshot.forEach(doc=>{
+        const data = doc.data();
+        if(data.users){
+          Object.entries(data.users).forEach(([uid,u])=>{
+            const expires = u.expiresAt ? u.expiresAt.toDate().toISOString() : "";
+            csv+=`${data.name},${uid},${u.plan},${u.status},${expires}\n`;
+          });
+        }
+      });
+      const blob = new Blob([csv], {type:"text/csv"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href=url; a.download="backup_licenses.csv"; a.click();
+      msg.innerHTML="✅ Backup berhasil diunduh";
+    }catch(e){ console.error(e); msg.innerHTML="❌ Gagal backup";}
+  });
+
+  // 🔹 Restore CSV
+  document.getElementById('restoreBtn').addEventListener('click', ()=>{
+    const file = document.getElementById('restoreFile').files[0];
+    const msg = document.getElementById('backupMessage');
+    if(!file){ msg.innerHTML="⚠️ Pilih file CSV"; return; }
+
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      const text = e.target.result;
+      const lines = text.split("\n").slice(1); // skip header
+      try{
+        for(let line of lines){
+          if(!line.trim()) continue;
+          const [project,userID,plan,status,expiresAt] = line.split(",");
+          if(!project||!userID) continue;
+          const projRef = db.collection("projects").doc(project);
+          const projSnap = await projRef.get();
+          const expDate = expiresAt ? new Date(expiresAt) : null;
+          const userData = {plan,status,expiresAt: expDate};
+          if(projSnap.exists){
+            const users = projSnap.data().users||{};
+            users[userID]=userData;
+            await projRef.update({users});
+          }else{
+            await projRef.set({name:project, users:{[userID]:userData}, defaultDuration:{trial:7,basic:30,premium:365}});
+          }
+        }
+        msg.innerHTML="✅ Restore selesai";
+      }catch(e){ console.error(e); msg.innerHTML="❌ Gagal restore CSV";}
+    };
+    reader.readAsText(file);
+  });
+
+</script>
 </body>
 </html>
