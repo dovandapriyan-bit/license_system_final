@@ -1,4 +1,3 @@
-// Firebase config (provided by user)
 const firebaseConfig = {
   apiKey: "AIzaSyCKJ1MkaHNZT9Em2YubSKPq-6Akh0zqt9E",
   authDomain: "license-system-ba060.firebaseapp.com",
@@ -8,3 +7,8 @@ const firebaseConfig = {
   appId: "1:879403904589:web:20fb63e7abaaebfa8ff604",
   measurementId: "G-FD0ZDQVKJB"
 };
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
