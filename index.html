@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>License Activation - Final</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header><h1>License Activation</h1></header>
+    <main>
+      <section class="card">
+        <label>License Key</label>
+        <input id="licenseKey" placeholder="LIC-XXXX-XXXX-XXXX" />
+        <label>Product ID</label>
+        <input id="productId" placeholder="prod-pos (contoh)" />
+        <button id="btnCheck">Check & Activate</button>
+        <div id="result" class="muted"></div>
+      </section>
+
+      <section class="card">
+        <h3>Available Licenses (preview)</h3>
+        <button id="btnList">Load Licenses</button>
+        <div id="list"></div>
+      </section>
+
+      <footer class="muted">Admin panel: <a href="admin.html">Open admin</a></footer>
+    </main>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
+  <script src="js/main.js"></script>
+</body>
+</html>
